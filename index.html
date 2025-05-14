@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AR-location Debug</title>
+  <title>AR Location - Real GPS</title>
 
   <!-- A-Frame と AR.js の読み込み -->
   <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
@@ -11,24 +11,25 @@
 
 <body style="margin: 0; overflow: hidden;">
 
-  <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-    
-    <!-- シミュレーション用の赤いボックス -->
-    <a-box 
+  <a-scene
+    vr-mode-ui="enabled: false"
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+  >
+
+    <!-- 実際の座標に合わせて赤いボックスを表示 -->
+    <a-box
       material="color: red"
       gps-entity-place="latitude: 33.546122; longitude: 133.678638;"
-      scale="1 1 1">
+      scale="20 20 20">
     </a-box>
 
-    <!-- simulateLatitude / simulateLongitude を指定 -->
-    <a-camera 
-      gps-camera="simulateLatitude: 33.546122; simulateLongitude: 133.678638;" 
-      rotation-reader>
-    </a-camera>
+    <!-- 実際の位置情報を使うカメラ（simulate系なし） -->
+    <a-camera gps-camera rotation-reader> </a-camera>
 
   </a-scene>
 
-  <!-- デバッグ用: 現在地が更新された時にコンソールに表示 -->
+  <!-- デバッグログ：現在地が取得されるたびに表示 -->
   <script>
     window.addEventListener('gps-camera-update-position', e => {
       console.log('現在地が更新されました:', e.detail.position);
@@ -41,3 +42,4 @@
 
 </body>
 </html>
+
