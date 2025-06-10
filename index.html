@@ -8,57 +8,40 @@
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/ngokevin/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
-
 </head>
 
-<body style="margin: 0; overflow: hidden;">
+<body style="margin: 0; overflow: hidden; background: transparent;">
 
   <a-scene
     vr-mode-ui="enabled: false"
     embedded
     arjs="sourceType: webcam; debugUIEnabled: false;"
+    renderer="alpha: true"
   >
 
-      <a-assets>
-        <a-asset-item id="model" src="img/more.glb"></a-asset-item>
-      </a-assets>
+    <a-assets>
+      <a-asset-item id="model" src="img/more.glb"></a-asset-item>
+    </a-assets>
 
-    <!-- 実際の座標に合わせて赤いボックスを表示 -->
-    <!--<a-box
-      material="color: red"
-      gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-      scale="1 1 1">
-    </a-box>-->
-
+    <!-- 3Dモデルの表示 -->
     <a-entity
-	  gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-          gltf-model="#model"
-          scale="1 1 1"
-        ></a-entity>
-    
-   <a-image
-  src="img/text_transparent.png"
-  gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-  position="0 2 0"
-  width="5"
-  height="2"
-  look-at="[gps-camera]"
-  material="transparent: true">
-   </a-image>
+      gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
+      gltf-model="#model"
+      scale="1 1 1"
+    ></a-entity>
 
+    <!-- 透過PNG画像の表示 -->
+    <a-image
+      src="img/text_transparent.png"
+      gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
+      position="0 2 0"
+      width="5"
+      height="2"
+      look-at="[camera]"
+      material="transparent: true; alphaTest: 0.1;"
+    ></a-image>
 
-    <!--<a-text
-  value="わっしょい"
-  gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-  position="0 15 0"
-  look-at="[gps-camera]"
-  scale="50 50 50"
-  color="#000000"
-  ></a-text>-->
-
-
-
-    <!-- 実際の位置情報を使うカメラ（simulate系なし） -->
+    <!-- カメラ -->
     <a-camera id="camera" gps-camera rotation-reader></a-camera>
 
   </a-scene>
@@ -76,4 +59,3 @@
 
 </body>
 </html>
-
