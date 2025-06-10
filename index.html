@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>AR Location - Real GPS</title>
 
-  <!-- A-Frame と AR.js の読み込み -->
+  <!-- A-Frame / AR.js / look-at コンポーネント -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/ngokevin/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
@@ -21,24 +21,25 @@
 
     <a-assets>
       <a-asset-item id="model" src="img/more.glb"></a-asset-item>
+      <img id="textImage" src="img/text_transparent.png" crossorigin="anonymous">
     </a-assets>
 
-    <!-- 3Dモデルの表示 -->
+    <!-- 3Dモデル -->
     <a-entity
       gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
       gltf-model="#model"
       scale="1 1 1"
     ></a-entity>
 
-    <!-- 透過PNG画像の表示 -->
+    <!-- PNG透過画像 -->
     <a-image
-      src="img/text_transparent.png"
+      src="#textImage"
       gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
       position="0 2 0"
       width="5"
       height="2"
       look-at="[camera]"
-      material="transparent: true; alphaTest: 0.1;"
+      material="shader: flat; transparent: true;"
     ></a-image>
 
     <!-- カメラ -->
@@ -46,7 +47,6 @@
 
   </a-scene>
 
-  <!-- デバッグログ：現在地が取得されるたびに表示 -->
   <script>
     window.addEventListener('gps-camera-update-position', e => {
       console.log('現在地が更新されました:', e.detail.position);
