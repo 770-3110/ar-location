@@ -61,22 +61,11 @@
     <a-entity
       gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
       scale="0.1 0.1 0.1"
-      position="20 0 20"
+      position="20 -10 20"
       freeze-gps-position
     >
 
       <a-entity gltf-model="#model"></a-entity>
-
-      <!-- PNG透過画像 -->
-      <a-image
-        src="#textImage"
-        position="0 1 0"
-        width="2"
-        height="2"
-        look-at="[camera]"
-        material="shader: flat; transparent: true;"
-      ></a-image>
-    </a-entity>
 
     <!-- カメラ -->
     <a-camera
