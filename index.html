@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Stable GPS AR Building</title>
+  <title>DEBUG - Show Model No GPS</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
@@ -13,7 +13,7 @@
   <a-scene
     vr-mode-ui="enabled: false"
     embedded
-    arjs="sourceType: webcam; debugUIEnabled: false;"
+    arjs="sourceType: webcam; debugUIEnabled: true;"
     renderer="alpha: true"
   >
 
@@ -21,74 +21,12 @@
       <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
     </a-assets>
 
-    <script>
-      // ===========================
-      // 揺れの少ない GPS AR ロジック
-      // ===========================
-
-      let anchor = null;            // 最初の GPS 位置（基準）
-      const smoothing = 0.1;        // 揺れ吸収係数（大→安定）
-
-      // 緯度経度 → ローカル ENU 座標変換
-      function gpsToLocal(lat, lon, base) {
-        const R = 6378137;
-        const dLat = (lat - base.lat) * Math.PI / 180;
-        const dLon = (lon - base.lon) * Math.PI / 180;
-
-        return {
-          x: R * dLon * Math.cos(base.lat * Math.PI / 180),
-          z: -R * dLat
-        };
-      }
-
-      AFRAME.registerComponent("stable-gps-object", {
-        schema: {
-          lat: { type: "number" },
-          lon: { type: "number" },
-          height: { type: "number", default: 0 }
-        },
-
-        init: function () {
-          this.targetPos = new THREE.Vector3();
-
-          window.addEventListener("gps-camera-update-position", (e) => {
-            const camLat = e.detail.position.latitude;
-            const camLon = e.detail.position.longitude;
-
-            // 1回だけ基準点を決める
-            if (!anchor) {
-              anchor = { lat: camLat, lon: camLon };
-              console.log("📌 Anchor fixed:", anchor);
-            }
-
-            // 建物のローカル位置計算
-            const local = gpsToLocal(this.data.lat, this.data.lon, anchor);
-
-            this.targetPos.set(local.x, this.data.height, local.z);
-          });
-        },
-
-        tick: function () {
-          // 基準点がまだ決まっていない場合は動かさない
-          if (!anchor) return;
-
-          // 揺れを吸収しながら位置更新
-          this.el.object3D.position.lerp(this.targetPos, smoothing);
-        }
-      });
-    </script>
-
-    <!-- ========================= -->
-    <!-- 建物モデル -->
-    <!-- ========================= -->
-    <a-entity stable-gps-object="lat: 33.548324; lon: 133.681047; height: -1;">
+    <!-- ★絶対に見える位置に建物を配置（GPSなし） -->
+    <a-entity position="0 0 -5">
       <a-entity gltf-model="#model" scale="1 1 1"></a-entity>
     </a-entity>
 
-    <!-- ========================= -->
-    <!-- カメラ -->
-    <!-- ========================= -->
-    <a-camera gps-camera rotation-reader></a-camera>
+    <a-camera></a-camera>
 
   </a-scene>
 </body>
