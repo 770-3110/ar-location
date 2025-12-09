@@ -1,33 +1,25 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>DEBUG - Show Model No GPS</title>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  </head>
+  <body style="margin:0; overflow:hidden">
+    <a-scene
+      embedded
+      vr-mode-ui="enabled:false"
+      arjs="sourceType: webcam; debugUIEnabled: true;"
+    >
 
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-</head>
+      <!-- あなたの位置とほぼ同じ場所にテキストを置く -->
+      <a-entity
+        gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
+        text="value: TEST; color: red; align:center"
+        scale="50 50 50"
+      ></a-entity>
 
-<body style="margin: 0; overflow: hidden; background: transparent;">
-
-  <a-scene
-    vr-mode-ui="enabled: false"
-    embedded
-    arjs="sourceType: webcam; debugUIEnabled: true;"
-    renderer="alpha: true"
-  >
-
-    <a-assets>
-      <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
-    </a-assets>
-
-    <!-- ★絶対に見える位置に建物を配置（GPSなし） -->
-    <a-entity position="0 0 -5">
-      <a-entity gltf-model="#model" scale="1 1 1"></a-entity>
-    </a-entity>
-
-    <a-camera></a-camera>
-
-  </a-scene>
-</body>
+      <a-camera gps-camera rotation-reader></a-camera>
+    </a-scene>
+  </body>
 </html>
