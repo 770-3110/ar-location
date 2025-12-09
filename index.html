@@ -21,16 +21,17 @@
       <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
     </a-assets>
 
-    <!-- ========================= -->
-    <!-- 固定位置 AR コンポーネント -->
-    <!-- ========================= -->
     <script>
-      let anchorWorld = null;   // 最初に決める基準座標
-      const smoothing = 0.08;   // 揺れ0にする補正値
+      // ===========================
+      // 揺れの少ない GPS AR ロジック
+      // ===========================
 
-      // 緯度経度 → ENU（ローカル座標）
+      let anchor = null;            // 最初の GPS 位置（基準）
+      const smoothing = 0.1;        // 揺れ吸収係数（大→安定）
+
+      // 緯度経度 → ローカル ENU 座標変換
       function gpsToLocal(lat, lon, base) {
-        const R = 6378137;  // 地球半径
+        const R = 6378137;
         const dLat = (lat - base.lat) * Math.PI / 180;
         const dLon = (lon - base.lon) * Math.PI / 180;
 
@@ -42,41 +43,43 @@
 
       AFRAME.registerComponent("stable-gps-object", {
         schema: {
-          lat: {type: "number"},
-          lon: {type: "number"},
-          height: {type: "number", default: 0}
+          lat: { type: "number" },
+          lon: { type: "number" },
+          height: { type: "number", default: 0 }
         },
+
         init: function () {
           this.targetPos = new THREE.Vector3();
+
+          window.addEventListener("gps-camera-update-position", (e) => {
+            const camLat = e.detail.position.latitude;
+            const camLon = e.detail.position.longitude;
+
+            // 1回だけ基準点を決める
+            if (!anchor) {
+              anchor = { lat: camLat, lon: camLon };
+              console.log("📌 Anchor fixed:", anchor);
+            }
+
+            // 建物のローカル位置計算
+            const local = gpsToLocal(this.data.lat, this.data.lon, anchor);
+
+            this.targetPos.set(local.x, this.data.height, local.z);
+          });
         },
+
         tick: function () {
-          const cam = document.querySelector("[gps-camera]");
-          const camDetail = cam.components["gps-camera"];
+          // 基準点がまだ決まっていない場合は動かさない
+          if (!anchor) return;
 
-          // GPS がまだ取得できていない場合
-          if (!camDetail.currentCoords) return;
-
-          const camLat = camDetail.currentCoords.latitude;
-          const camLon = camDetail.currentCoords.longitude;
-
-          // 基準位置を1度だけ固定
-          if (!anchorWorld) {
-            anchorWorld = { lat: camLat, lon: camLon };
-            console.log("📌 Anchor fixed:", anchorWorld);
-          }
-
-          // 建物のローカル位置
-          const local = gpsToLocal(this.data.lat, this.data.lon, anchorWorld);
-
-          // 滑らかに建物を固定
-          this.targetPos.set(local.x, this.data.height, local.z);
+          // 揺れを吸収しながら位置更新
           this.el.object3D.position.lerp(this.targetPos, smoothing);
         }
       });
     </script>
 
     <!-- ========================= -->
-    <!-- 建物オブジェクト -->
+    <!-- 建物モデル -->
     <!-- ========================= -->
     <a-entity stable-gps-object="lat: 33.548324; lon: 133.681047; height: -1;">
       <a-entity gltf-model="#model" scale="1 1 1"></a-entity>
