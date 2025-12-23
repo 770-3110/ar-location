@@ -2,41 +2,79 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Stable GPS AR Building</title>
+  <title>AR Location - Real GPS</title>
 
+  <!-- A-Frame / AR.js / look-at -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/ngokevin/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
 </head>
 
-<body style="margin:0; overflow:hidden; background:transparent;">
+<body style="margin: 0; overflow: hidden; background: transparent;">
 
 <a-scene
+  vr-mode-ui="enabled: false"
   embedded
-  vr-mode-ui="enabled:false"
-  arjs="sourceType: webcam; debugUIEnabled:false;"
-  renderer="alpha:true"
+  arjs="sourceType: webcam; debugUIEnabled: false;"
+  renderer="alpha: true"
 >
 
   <a-assets>
-    <a-asset-item id="building" src="img/4ensr.glb"></a-asset-item>
+    <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
+    <img id="textImage" src="img/text_transparent.png?v=2" crossorigin="anonymous">
   </a-assets>
 
-  <!-- 建物（見た目20m・内部2m） -->
+  <!-- モデルの外側コンテナ（位置操作はここで） -->
   <a-entity
+    id="modelContainer"
     gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-    position="0 0 0"
+    position="20 -2 20"
   >
+
+    <!-- 実際のモデル -->
     <a-entity
-      gltf-model="#building"
+      id="gltfModel"
+      gltf-model="#model"
       scale="1 1 1"
-      position="0 -1 0"
-      rotation="0 180 0"
     ></a-entity>
+
+    <!-- PNGラベル -->
+    <a-image
+      src="#textImage"
+      position="0 1 0"
+      width="2"
+      height="2"
+      look-at="[camera]"
+      material="shader: flat; transparent: true;"
+    ></a-image>
+
   </a-entity>
 
-  <a-camera gps-camera rotation-reader></a-camera>
+  <a-camera id="camera" gps-camera rotation-reader></a-camera>
 
 </a-scene>
+
+<script>
+
+// モデル読み込み完了後に安全な位置とスケールを適用
+document.getElementById('gltfModel').addEventListener('model-loaded', (e) => {
+  const model = e.detail.model;
+
+  // バウンディング情報で中心補正
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.sub(center); // 中心を原点に合わせる
+});
+
+// デバッグ（任意）
+window.addEventListener('gps-camera-update-position', e => {
+  console.log('現在地が更新されました:', e.detail.position);
+});
+window.addEventListener('gps-entity-place-added', e => {
+  console.log('オブジェクトが配置されました:', e.detail);
+});
+
+</script>
 
 </body>
 </html>
