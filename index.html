@@ -2,9 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AR Location - Real GPS</title>
+  <title>AR Location - Averaged GPS</title>
 
-  <!-- A-Frame / AR.js / look-at -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/ngokevin/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
@@ -13,10 +12,10 @@
 <body style="margin: 0; overflow: hidden; background: transparent;">
 
 <a-scene
-  vr-mode-ui="enabled: false"
   embedded
-  arjs="sourceType: webcam; debugUIEnabled: false;"
-  renderer="alpha: true"
+  vr-mode-ui="enabled:false"
+  arjs="sourceType: webcam; debugUIEnabled:false;"
+  renderer="alpha:true"
 >
 
   <a-assets>
@@ -24,21 +23,14 @@
     <img id="textImage" src="img/text_transparent.png?v=2" crossorigin="anonymous">
   </a-assets>
 
-  <!-- モデルの外側コンテナ（位置操作はここで） -->
-  <a-entity
-    id="modelContainer"
-    gps-entity-place="latitude: 33.548324; longitude: 133.681047;"
-    position="20 -2 20"
-  >
-
-    <!-- 実際のモデル -->
+  <!-- 建物コンテナ -->
+  <a-entity id="modelContainer">
     <a-entity
       id="gltfModel"
       gltf-model="#model"
       scale="1 1 1"
     ></a-entity>
 
-    <!-- PNGラベル -->
     <a-image
       src="#textImage"
       position="0 1 0"
@@ -47,7 +39,6 @@
       look-at="[camera]"
       material="shader: flat; transparent: true;"
     ></a-image>
-
   </a-entity>
 
   <a-camera id="camera" gps-camera rotation-reader></a-camera>
@@ -55,25 +46,90 @@
 </a-scene>
 
 <script>
+/* ========= 設定 ========= */
+const TARGET_LAT = 33.548324;
+const TARGET_LON = 133.681047;
+const SAMPLE_MAX = 8;        // 平均に使うGPS点数（≒数秒）
+const UPDATE_INTERVAL = 2000; // 何msごとに位置更新するか
+const SMOOTH = 0.15;          // 補間の強さ
 
-// モデル読み込み完了後に安全な位置とスケールを適用
-document.getElementById('gltfModel').addEventListener('model-loaded', (e) => {
-  const model = e.detail.model;
+/* ========= 内部変数 ========= */
+let samples = [];
+let lastUpdate = 0;
+let targetPos = new THREE.Vector3();
 
-  // バウンディング情報で中心補正
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center); // 中心を原点に合わせる
+/* ========= GPS → ローカル座標変換 ========= */
+function gpsToLocal(lat, lon, baseLat, baseLon) {
+  const R = 6378137;
+  const dLat = (lat - baseLat) * Math.PI / 180;
+  const dLon = (lon - baseLon) * Math.PI / 180;
+  return {
+    x: R * dLon * Math.cos(baseLat * Math.PI / 180),
+    z: -R * dLat
+  };
+}
+
+/* ========= メインループ ========= */
+AFRAME.registerComponent("avg-gps-follow", {
+  tick: function (time) {
+    const cam = document.getElementById("camera");
+    const gps = cam.components["gps-camera"];
+    if (!gps || !gps.currentCoords) return;
+
+    // GPSをバッファに追加
+    samples.push({
+      lat: gps.currentCoords.latitude,
+      lon: gps.currentCoords.longitude
+    });
+    if (samples.length > SAMPLE_MAX) samples.shift();
+
+    // 一定間隔でのみ更新
+    if (time - lastUpdate < UPDATE_INTERVAL) return;
+    lastUpdate = time;
+
+    // 平均計算
+    const avg = samples.reduce((a, b) => ({
+      lat: a.lat + b.lat,
+      lon: a.lon + b.lon
+    }), { lat: 0, lon: 0 });
+
+    avg.lat /= samples.length;
+    avg.lon /= samples.length;
+
+    // ローカル座標化
+    const local = gpsToLocal(
+      TARGET_LAT,
+      TARGET_LON,
+      avg.lat,
+      avg.lon
+    );
+
+    targetPos.set(local.x, -2, local.z);
+  }
 });
 
-// デバッグ（任意）
-window.addEventListener('gps-camera-update-position', e => {
-  console.log('現在地が更新されました:', e.detail.position);
-});
-window.addEventListener('gps-entity-place-added', e => {
-  console.log('オブジェクトが配置されました:', e.detail);
-});
+/* ========= 適用 ========= */
+document
+  .getElementById("modelContainer")
+  .setAttribute("avg-gps-follow", "");
 
+/* ========= モデル中心補正 ========= */
+document
+  .getElementById("gltfModel")
+  .addEventListener("model-loaded", e => {
+    const model = e.detail.model;
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+  });
+
+/* ========= スムージング ========= */
+AFRAME.scenes[0].addEventListener("loaded", () => {
+  const container = document.getElementById("modelContainer");
+  AFRAME.scenes[0].addEventListener("tick", () => {
+    container.object3D.position.lerp(targetPos, SMOOTH);
+  });
+});
 </script>
 
 </body>
