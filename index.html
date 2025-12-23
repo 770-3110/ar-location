@@ -2,133 +2,104 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AR Location - Averaged GPS</title>
+  <title>Strict GPS AR Placement</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/ngokevin/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
 </head>
 
-<body style="margin: 0; overflow: hidden; background: transparent;">
+<body style="margin:0; overflow:hidden; background:black;">
 
 <a-scene
   embedded
   vr-mode-ui="enabled:false"
-  arjs="sourceType: webcam; debugUIEnabled:false;"
+  arjs="sourceType: webcam; debugUIEnabled: true;"
   renderer="alpha:true"
 >
 
   <a-assets>
     <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
-    <img id="textImage" src="img/text_transparent.png?v=2" crossorigin="anonymous">
   </a-assets>
 
-  <!-- 建物コンテナ -->
-  <a-entity id="modelContainer">
+  <!-- ===== 建物（最初は非表示） ===== -->
+  <a-entity
+    id="building"
+    visible="false"
+    gps-entity-place="latitude: 33.5484305; longitude: 133.681023;"
+  >
     <a-entity
-      id="gltfModel"
+      id="gltf"
       gltf-model="#model"
       scale="1 1 1"
     ></a-entity>
-
-    <a-image
-      src="#textImage"
-      position="0 1 0"
-      width="2"
-      height="2"
-      look-at="[camera]"
-      material="shader: flat; transparent: true;"
-    ></a-image>
   </a-entity>
 
-  <a-camera id="camera" gps-camera rotation-reader></a-camera>
+  <!-- カメラ -->
+  <a-camera gps-camera rotation-reader></a-camera>
 
 </a-scene>
 
 <script>
-/* ========= 設定 ========= */
-const TARGET_LAT = 3;
-const TARGET_LON = 1;
-const SAMPLE_MAX = 8;        // 平均に使うGPS点数（≒数秒）
-const UPDATE_INTERVAL = 2000; // 何msごとに位置更新するか
-const SMOOTH = 0.15;          // 補間の強さ
+/* ===== 設定 ===== */
+const MAX_DISTANCE = 50; // m（これ以上遠いと表示しない）
 
-/* ========= 内部変数 ========= */
-let samples = [];
-let lastUpdate = 0;
-let targetPos = new THREE.Vector3();
-
-/* ========= GPS → ローカル座標変換 ========= */
-function gpsToLocal(lat, lon, baseLat, baseLon) {
+/* 距離計算 */
+function calcDistance(lat1, lon1, lat2, lon2) {
   const R = 6378137;
-  const dLat = (lat - baseLat) * Math.PI / 180;
-  const dLon = (lon - baseLon) * Math.PI / 180;
-  return {
-    x: R * dLon * Math.cos(baseLat * Math.PI / 180),
-    z: -R * dLat
-  };
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-/* ========= メインループ ========= */
-AFRAME.registerComponent("avg-gps-follow", {
-  tick: function (time) {
-    const cam = document.getElementById("camera");
-    const gps = cam.components["gps-camera"];
-    if (!gps || !gps.currentCoords) return;
+/* GPS取得確認 */
+let cameraCoords = null;
 
-    // GPSをバッファに追加
-    samples.push({
-      lat: gps.currentCoords.latitude,
-      lon: gps.currentCoords.longitude
-    });
-    if (samples.length > SAMPLE_MAX) samples.shift();
+window.addEventListener("gps-camera-update-position", e => {
+  cameraCoords = e.detail.position;
+  console.log("📍 Camera GPS:", cameraCoords);
+});
 
-    // 一定間隔でのみ更新
-    if (time - lastUpdate < UPDATE_INTERVAL) return;
-    lastUpdate = time;
+/* GPS設置完了時 */
+window.addEventListener("gps-entity-place-added", () => {
+  if (!cameraCoords) return;
 
-    // 平均計算
-    const avg = samples.reduce((a, b) => ({
-      lat: a.lat + b.lat,
-      lon: a.lon + b.lon
-    }), { lat: 0, lon: 0 });
+  const targetLat = 33.548324;
+  const targetLon = 133.681047;
 
-    avg.lat /= samples.length;
-    avg.lon /= samples.length;
+  const d = calcDistance(
+    cameraCoords.latitude,
+    cameraCoords.longitude,
+    targetLat,
+    targetLon
+  );
 
-    // ローカル座標化
-    const local = gpsToLocal(
-      TARGET_LAT,
-      TARGET_LON,
-      avg.lat,
-      avg.lon
-    );
+  console.log("📏 Distance to target:", d.toFixed(1), "m");
 
-    targetPos.set(local.x, -2, local.z);
+  const building = document.getElementById("building");
+
+  if (d <= MAX_DISTANCE) {
+    building.setAttribute("visible", true);
+    console.log("✅ Building visible (GPS OK)");
+  } else {
+    building.setAttribute("visible", false);
+    console.log("❌ Too far: building hidden");
   }
 });
 
-/* ========= 適用 ========= */
-document
-  .getElementById("modelContainer")
-  .setAttribute("avg-gps-follow", "");
+/* モデル原点補正 */
+document.getElementById("gltf").addEventListener("model-loaded", e => {
+  const model = e.detail.model;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
 
-/* ========= モデル中心補正 ========= */
-document
-  .getElementById("gltfModel")
-  .addEventListener("model-loaded", e => {
-    const model = e.detail.model;
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-  });
-
-/* ========= スムージング ========= */
-AFRAME.scenes[0].addEventListener("loaded", () => {
-  const container = document.getElementById("modelContainer");
-  AFRAME.scenes[0].addEventListener("tick", () => {
-    container.object3D.position.lerp(targetPos, SMOOTH);
-  });
+  model.position.sub(center);
+  model.position.y += size.y / 2; // 足元を地面へ
 });
 </script>
 
