@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Strict GPS AR Placement</title>
+  <meta charset="utf-8">
+  <title>Pure GPS Placement Test</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 </head>
 
-<body style="margin:0; overflow:hidden; background:black;">
+<body style="margin:0; overflow:hidden;">
 
 <a-scene
   embedded
@@ -21,14 +21,13 @@
     <a-asset-item id="model" src="img/4ensr.glb"></a-asset-item>
   </a-assets>
 
-  <!-- ===== 建物（最初は非表示） ===== -->
+  <!-- ===== GPSでのみ出現するオブジェクト ===== -->
   <a-entity
-    id="building"
+    id="gpsObject"
     visible="false"
-    gps-entity-place="latitude: 33.5484305; longitude: 133.681023;"
+    gps-entity-place="latitude: 33.548325; longitude: 133.680984;"
   >
     <a-entity
-      id="gltf"
       gltf-model="#model"
       scale="1 1 1"
     ></a-entity>
@@ -40,66 +39,16 @@
 </a-scene>
 
 <script>
-/* ===== 設定 ===== */
-const MAX_DISTANCE = 50; // m（これ以上遠いと表示しない）
+/* GPSで配置された瞬間にだけ表示 */
+window.addEventListener("gps-entity-place-added", e => {
+  const obj = document.getElementById("gpsObject");
+  obj.setAttribute("visible", true);
+  console.log("✅ GPS object placed at target coordinates");
+});
 
-/* 距離計算 */
-function calcDistance(lat1, lon1, lat2, lon2) {
-  const R = 6378137;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat/2)**2 +
-    Math.cos(lat1*Math.PI/180) *
-    Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2)**2;
-  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-/* GPS取得確認 */
-let cameraCoords = null;
-
+/* デバッグ：現在地 */
 window.addEventListener("gps-camera-update-position", e => {
-  cameraCoords = e.detail.position;
-  console.log("📍 Camera GPS:", cameraCoords);
-});
-
-/* GPS設置完了時 */
-window.addEventListener("gps-entity-place-added", () => {
-  if (!cameraCoords) return;
-
-  const targetLat = 33.548324;
-  const targetLon = 133.681047;
-
-  const d = calcDistance(
-    cameraCoords.latitude,
-    cameraCoords.longitude,
-    targetLat,
-    targetLon
-  );
-
-  console.log("📏 Distance to target:", d.toFixed(1), "m");
-
-  const building = document.getElementById("building");
-
-  if (d <= MAX_DISTANCE) {
-    building.setAttribute("visible", true);
-    console.log("✅ Building visible (GPS OK)");
-  } else {
-    building.setAttribute("visible", false);
-    console.log("❌ Too far: building hidden");
-  }
-});
-
-/* モデル原点補正 */
-document.getElementById("gltf").addEventListener("model-loaded", e => {
-  const model = e.detail.model;
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-
-  model.position.sub(center);
-  model.position.y += size.y / 2; // 足元を地面へ
+  console.log("📍 Camera GPS:", e.detail.position);
 });
 </script>
 
